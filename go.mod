@@ -2,7 +2,10 @@ module github.com/sudesh856/LoadForge
 
 go 1.25.5
 
-require github.com/spf13/cobra v1.10.2
+require (
+	github.com/HdrHistogram/hdrhistogram-go v1.2.0
+	github.com/spf13/cobra v1.10.2
+)
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
