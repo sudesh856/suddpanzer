@@ -16,6 +16,8 @@ import (
 	"github.com/sudesh856/LoadForge/internal/reporter"
 	"github.com/sudesh856/LoadForge/internal/worker"
 	"golang.org/x/time/rate"
+	"github.com/sudesh856/LoadForge/internal/ramp"
+	"github.com/sudesh856/LoadForge/internal/scenario"
 )
 
 var url      string
@@ -23,12 +25,93 @@ var vus      int
 var duration string
 var rps      int
 var output string
+var flagScenarioFile string
+
 
 
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a load test",
 	Run: func(cmd *cobra.Command, args []string) {
+
+	if flagScenarioFile != "" {
+    s, err := scenario.LoadScenario(flagScenarioFile)
+    if err != nil {
+        fmt.Println("scenario error:", err)
+        return
+    }
+
+    // Convert stages for ramp controller
+    rampStages := make([]ramp.Stage, len(s.Stages))
+    for i, st := range s.Stages {
+        rampStages[i] = ramp.Stage{
+            Duration:  st.ParsedDuration,
+            TargetVUs: st.TargetVUs,
+        }
+    }
+
+    // Total duration = sum of all stages
+    totalDur := time.Duration(0)
+    for _, st := range s.Stages {
+        totalDur += st.ParsedDuration
+    }
+
+    ctx, cancelSignal := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancelTimeout := context.WithTimeout(ctx, totalDur)
+
+	defer cancelTimeout()
+	defer cancelSignal()
+
+    ctrl := ramp.New(rampStages)
+	go ctrl.Run(ctx)
+
+	maxVUs := 0
+	for _, st := range rampStages {
+		if st.TargetVUs > maxVUs {
+			maxVUs = st.TargetVUs
+		}
+	}
+	p := pool.New(1000)
+	p.Start(ctx, maxVUs)
+    agg := metrics.New()
+    agg.Start(p.Results())
+    start := time.Now()
+
+    var wg sync.WaitGroup
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        for {
+            select {
+            case <-ctx.Done():
+                return
+            case ctrl.Semaphore <- struct{}{}:
+                ep := scenario.PickEndpoint(s.Endpoints)
+                url := scenario.ReplaceVars(ep.URL, nil)
+                body := scenario.ReplaceVars(ep.Body, nil)
+                p.Submit(worker.Job{URL: url, Method: ep.Method, Body: body})
+                <-ctrl.Semaphore
+            }
+        }
+    }()
+
+    <-ctx.Done()
+    wg.Wait()
+    time.Sleep(100 * time.Millisecond)
+
+    elapsed := time.Since(start)
+    fmt.Printf("\n\n----- SUDD SCENARIO SUMMARY -----\n")
+    fmt.Printf("Scenario       : %s\n", s.Name)
+    fmt.Printf("Duration       : %s\n", elapsed.Round(time.Second))
+    fmt.Printf("Total Requests : %d\n", agg.TotalRequests())
+    fmt.Printf("Avg RPS        : %.2f\n", agg.RPS(elapsed))
+    fmt.Printf("p99            : %dms\n", agg.P99())
+    fmt.Printf("Errors         : %d\n", agg.ErrorCount())
+    fmt.Printf("=================================\n")
+    return
+
+			return
+		}
 		dur, err := time.ParseDuration(duration)
 		if err != nil {
 			fmt.Println("invalid duration:", err)
@@ -170,6 +253,8 @@ func init() {
 	runCmd.Flags().StringVar(&duration, "duration", "30s", "Test duration")
 	runCmd.Flags().IntVar(&rps,         "rps",      0,     "Max requests per second (0 = unlimited)")
 	runCmd.Flags().StringVar(&output, "output", "text", "Output format: text or json")
+	runCmd.Flags().StringVar(&flagScenarioFile, "scenario", "", "Path to YAML scenario file")
+
 
 	rootCmd.AddCommand(runCmd)
 }

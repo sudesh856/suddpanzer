@@ -4,12 +4,16 @@ import (
 	"context"
 	"net/http"
 	"time"
+	"io"
+	"strings"
 )
 
 //since Job is what we send to a worker which is  the url to hit;
 
 type Job struct {
 	URL string
+	Method string
+	Body string
 }
 
 
@@ -38,7 +42,22 @@ func RunWorker(ctx context.Context, jobs <- chan Job, results chan <- Result) {
 			}
 
 			start := time.Now()
-			resp, err := client.Get(job.URL)
+
+			method := job.Method
+			if method == "" {
+				method = "GET"
+			}
+			var bodyReader io.Reader
+			if job.Body != "" {
+				bodyReader = strings.NewReader(job.Body)
+			}
+			req, err := http.NewRequestWithContext(ctx, method, job.URL, bodyReader)
+			if err != nil {
+				results <- Result{Latency: time.Since(start), Err: err}
+				continue
+			}
+			resp, err := client.Do(req)
+
 			latency := time.Since(start)
 
 			if err != nil {
