@@ -79,21 +79,41 @@ var runCmd = &cobra.Command{
 
     var wg sync.WaitGroup
     wg.Add(1)
+	chainStore := scenario.NewChainStore()
     go func() {
-        defer wg.Done()
-        for {
-            select {
-            case <-ctx.Done():
-                return
-            case ctrl.Semaphore <- struct{}{}:
-                ep := scenario.PickEndpoint(s.Endpoints)
-                url := scenario.ReplaceVars(ep.URL, nil)
-                body := scenario.ReplaceVars(ep.Body, nil)
-                p.Submit(worker.Job{URL: url, Method: ep.Method, Body: body})
-                <-ctrl.Semaphore
+    for result := range p.Results() {
+        if result.EndpointName != "" && len(result.Body) > 0 {
+            for _, ep := range s.Endpoints {
+                if ep.Name == result.EndpointName {
+                    chainStore.Store(result.EndpointName, result.Body, ep.Extract)
+                    break
+                }
             }
         }
-    }()
+    }
+}()
+
+go func() {
+    defer wg.Done()
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        case ctrl.Semaphore <- struct{}{}:
+            ep := scenario.PickEndpoint(s.Endpoints)
+            vars := chainStore.ToVars()
+            url := scenario.ReplaceVars(ep.URL, vars)
+            body := scenario.ReplaceVars(ep.Body, vars)
+            p.Submit(worker.Job{
+                Name:   ep.Name,
+                URL:    url,
+                Method: ep.Method,
+                Body:   body,
+            })
+            <-ctrl.Semaphore
+        }
+    }
+}()
 
     <-ctx.Done()
     wg.Wait()

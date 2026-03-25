@@ -11,6 +11,7 @@ import (
 //since Job is what we send to a worker which is  the url to hit;
 
 type Job struct {
+	Name string
 	URL string
 	Method string
 	Body string
@@ -20,10 +21,12 @@ type Job struct {
 //and since Result is what the worker sends back after firing a request
 
 type Result struct {
-	Latency time.Duration
-	StatusCode int
-	Err error
-	Bytes int64
+	Latency      time.Duration
+	StatusCode   int
+	Err          error
+	Bytes        int64
+	Body         []byte
+	EndpointName string
 }
 
 //listening by RunWorker for jobs and firing HTTP requests
@@ -64,15 +67,16 @@ func RunWorker(ctx context.Context, jobs <- chan Job, results chan <- Result) {
 				results <- Result {Latency: latency, Err: err}
 				continue }
 
-					results <- Result{
-						Latency: latency,
-						StatusCode: resp.StatusCode,
-						Bytes: resp.ContentLength,
-					}
+					bodyBytes, _ := io.ReadAll(resp.Body)
 					resp.Body.Close()
+					results <- Result{
+						Latency:      latency,
+						StatusCode:   resp.StatusCode,
+						Bytes:        int64(len(bodyBytes)),
+						Body:         bodyBytes,
+						EndpointName: job.Name,
+					}
 				}
-
-				
 			}
 		}
 	

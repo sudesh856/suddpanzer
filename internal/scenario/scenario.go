@@ -21,12 +21,15 @@ type Stage struct {
 }
 
 type Endpoint struct {
+	Name string `yaml:"name"`
 	URL string `yaml:"url"`
 	Method string `yaml:"method"`
 	Headers map[string]string `yaml:"headers"`
 	Body string `yaml:"body"`
 	Weight int `yaml:"weight"`
 	ExpectedStatus int `yaml:"expected_status"`
+	Extract map[string]string `yaml:"extract"`
+	DependsOn string `yaml:"depends_on"`
 }
 
 func LoadScenario(path string) (*Scenario, error) {
