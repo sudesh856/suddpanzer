@@ -122,18 +122,63 @@ go func() {
     time.Sleep(100 * time.Millisecond)
 
     elapsed := time.Since(start)
-    fmt.Printf("\n\n----- SUDD SCENARIO SUMMARY -----\n")
-    fmt.Printf("Scenario       : %s\n", s.Name)
-    fmt.Printf("Duration       : %s\n", elapsed.Round(time.Second))
-    fmt.Printf("Total Requests : %d\n", agg.TotalRequests())
-    fmt.Printf("Avg RPS        : %.2f\n", agg.RPS(elapsed))
-    fmt.Printf("p99            : %dms\n", agg.P99())
-    fmt.Printf("Errors         : %d\n", agg.ErrorCount())
-    fmt.Printf("=================================\n")
+    if output == "json" {
+        type ScenarioSummary struct {
+            Scenario      string  `json:"scenario"`
+            DurationSecs  float64 `json:"duration_secs"`
+            TotalRequests int64   `json:"total_requests"`
+            AvgRPS        float64 `json:"avg_rps"`
+            P50           int64   `json:"p50_ms"`
+            P75           int64   `json:"p75_ms"`
+            P90           int64   `json:"p90_ms"`
+            P95           int64   `json:"p95_ms"`
+            P99           int64   `json:"p99_ms"`
+            P999          int64   `json:"p999_ms"`
+            Max           int64   `json:"max_ms"`
+            Errors        int64   `json:"errors"`
+            ErrorRate     float64 `json:"error_rate_pct"`
+        }
+        sum := ScenarioSummary{
+            Scenario:      s.Name,
+            DurationSecs:  elapsed.Seconds(),
+            TotalRequests: agg.TotalRequests(),
+            AvgRPS:        agg.RPS(elapsed),
+            P50:           agg.P50(),
+            P75:           agg.P75(),
+            P90:           agg.P90(),
+            P95:           agg.P95(),
+            P99:           agg.P99(),
+            P999:          agg.P999(),
+            Max:           agg.Max(),
+            Errors:        agg.ErrorCount(),
+            ErrorRate:     agg.ErrorRate(),
+        }
+        data, _ := json.MarshalIndent(sum, "", "  ")
+        fmt.Println("\n" + string(data))
+    } else {
+        fmt.Printf("\n\n----- SUDD SCENARIO SUMMARY -----\n")
+        fmt.Printf("Scenario       : %s\n", s.Name)
+        fmt.Printf("Duration       : %s\n", elapsed.Round(time.Second))
+        fmt.Printf("-----------------------------------\n")
+        fmt.Printf("Total Requests : %d\n", agg.TotalRequests())
+        fmt.Printf("Avg RPS        : %.2f\n", agg.RPS(elapsed))
+        fmt.Printf("-----------------------------------\n")
+        fmt.Printf("p50            : %dms\n", agg.P50())
+        fmt.Printf("p75            : %dms\n", agg.P75())
+        fmt.Printf("p90            : %dms\n", agg.P90())
+        fmt.Printf("p95            : %dms\n", agg.P95())
+        fmt.Printf("p99            : %dms\n", agg.P99())
+        fmt.Printf("p999           : %dms\n", agg.P999())
+        fmt.Printf("Max            : %dms\n", agg.Max())
+        fmt.Printf("-----------------------------------\n")
+        fmt.Printf("Errors         : %d\n", agg.ErrorCount())
+        fmt.Printf("Error Rate     : %.2f%%\n", agg.ErrorRate())
+        fmt.Printf("=================================\n")
+    }
     return
 
-			return
-		}
+	
+	}
 		dur, err := time.ParseDuration(duration)
 		if err != nil {
 			fmt.Println("invalid duration:", err)
