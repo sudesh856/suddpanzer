@@ -109,6 +109,8 @@ go func() {
                 URL:    url,
                 Method: ep.Method,
                 Body:   body,
+				ExpectedStatus: ep.ExpectedStatus,
+
             })
             <-ctrl.Semaphore
         }

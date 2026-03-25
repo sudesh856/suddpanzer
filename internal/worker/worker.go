@@ -2,10 +2,11 @@ package worker
 
 import (
 	"context"
-	"net/http"
-	"time"
+	"fmt"
 	"io"
+	"net/http"
 	"strings"
+	"time"
 )
 
 //since Job is what we send to a worker which is  the url to hit;
@@ -15,6 +16,8 @@ type Job struct {
 	URL string
 	Method string
 	Body string
+	ExpectedStatus int
+
 }
 
 
@@ -67,14 +70,21 @@ func RunWorker(ctx context.Context, jobs <- chan Job, results chan <- Result) {
 				results <- Result {Latency: latency, Err: err}
 				continue }
 
-					bodyBytes, _ := io.ReadAll(resp.Body)
+				bodyBytes, _ := io.ReadAll(resp.Body)
 					resp.Body.Close()
+
+					var resultErr error
+					if job.ExpectedStatus != 0 && resp.StatusCode != job.ExpectedStatus {
+						resultErr = fmt.Errorf("expected status %d got %d", job.ExpectedStatus, resp.StatusCode)
+					}
+
 					results <- Result{
 						Latency:      latency,
 						StatusCode:   resp.StatusCode,
 						Bytes:        int64(len(bodyBytes)),
 						Body:         bodyBytes,
 						EndpointName: job.Name,
+						Err:          resultErr,
 					}
 				}
 			}
