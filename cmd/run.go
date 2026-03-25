@@ -8,10 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"encoding/json"
+
+	"github.com/spf13/cobra"
 	"github.com/sudesh856/LoadForge/internal/metrics"
 	"github.com/sudesh856/LoadForge/internal/pool"
+	"github.com/sudesh856/LoadForge/internal/reporter"
 	"github.com/sudesh856/LoadForge/internal/worker"
-	"github.com/spf13/cobra"
 	"golang.org/x/time/rate"
 )
 
@@ -19,6 +22,8 @@ var url      string
 var vus      int
 var duration string
 var rps      int
+var output string
+
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -78,7 +83,7 @@ var runCmd = &cobra.Command{
 					return
 				case <-ticker.C:
 					elapsed := time.Since(start)
-					fmt.Printf("\rRequests: %d | RPS: %.0f | p99: %dms | Errors: %d",
+					reporter.Print(
 						agg.TotalRequests(),
 						agg.RPS(elapsed),
 						agg.P99(),
@@ -100,25 +105,62 @@ var runCmd = &cobra.Command{
 		elapsed := time.Since(start)
 
 		// final summary
-		fmt.Printf("\n\n---- SUDD LOAD TEST SUMMARY ----\n")
-		fmt.Printf("URL            : %s\n", url)
-		fmt.Printf("VUs            : %d\n", vus)
-		fmt.Printf("Duration       : %s\n", elapsed.Round(time.Second))
-		fmt.Printf("-----------------------------------\n")
-		fmt.Printf("Total Requests : %d\n", agg.TotalRequests())
-		fmt.Printf("Avg RPS        : %.2f\n", agg.RPS(elapsed))
-		fmt.Printf("-----------------------------------\n")
-		fmt.Printf("p50            : %dms\n", agg.P50())
-		fmt.Printf("p75            : %dms\n", agg.P75())
-		fmt.Printf("p90            : %dms\n", agg.P90())
-		fmt.Printf("p95            : %dms\n", agg.P95())
-		fmt.Printf("p99            : %dms\n", agg.P99())
-		fmt.Printf("p999           : %dms\n", agg.P999())
-		fmt.Printf("Max            : %dms\n", agg.Max())
-		fmt.Printf("-----------------------------------\n")
-		fmt.Printf("Errors         : %d\n", agg.ErrorCount())
-		fmt.Printf("Error Rate     : %.2f%%\n", agg.ErrorRate())
-		fmt.Printf("===================================\n")
+		if output == "json" {
+			type Summary struct {
+				URL          string  `json:"url"`
+				VUs          int     `json:"vus"`
+				DurationSecs float64 `json:"duration_secs"`
+				TotalRequests int64  `json:"total_requests"`
+				AvgRPS       float64 `json:"avg_rps"`
+				P50          int64   `json:"p50_ms"`
+				P75          int64   `json:"p75_ms"`
+				P90          int64   `json:"p90_ms"`
+				P95          int64   `json:"p95_ms"`
+				P99          int64   `json:"p99_ms"`
+				P999         int64   `json:"p999_ms"`
+				Max          int64   `json:"max_ms"`
+				Errors       int64   `json:"errors"`
+				ErrorRate    float64 `json:"error_rate_pct"`
+			}
+			s := Summary{
+				URL:           url,
+				VUs:           vus,
+				DurationSecs:  elapsed.Seconds(),
+				TotalRequests: agg.TotalRequests(),
+				AvgRPS:        agg.RPS(elapsed),
+				P50:           agg.P50(),
+				P75:           agg.P75(),
+				P90:           agg.P90(),
+				P95:           agg.P95(),
+				P99:           agg.P99(),
+				P999:          agg.P999(),
+				Max:           agg.Max(),
+				Errors:        agg.ErrorCount(),
+				ErrorRate:     agg.ErrorRate(),
+			}
+			data, _ := json.MarshalIndent(s, "", "  ")
+			fmt.Println("\n" + string(data))
+		} else {
+			fmt.Printf("\n\n----- SUDD LOAD TEST SUMMARY -----\n")
+			fmt.Printf("URL            : %s\n", url)
+			fmt.Printf("VUs            : %d\n", vus)
+			fmt.Printf("Duration       : %s\n", elapsed.Round(time.Second))
+			fmt.Printf("-----------------------------------\n")
+			fmt.Printf("Total Requests : %d\n", agg.TotalRequests())
+			fmt.Printf("Avg RPS        : %.2f\n", agg.RPS(elapsed))
+			fmt.Printf("-----------------------------------\n")
+			fmt.Printf("p50            : %dms\n", agg.P50())
+			fmt.Printf("p75            : %dms\n", agg.P75())
+			fmt.Printf("p90            : %dms\n", agg.P90())
+			fmt.Printf("p95            : %dms\n", agg.P95())
+			fmt.Printf("p99            : %dms\n", agg.P99())
+			fmt.Printf("p999           : %dms\n", agg.P999())
+			fmt.Printf("Max            : %dms\n", agg.Max())
+			fmt.Printf("-----------------------------------\n")
+			fmt.Printf("Errors         : %d\n", agg.ErrorCount())
+			fmt.Printf("Error Rate     : %.2f%%\n", agg.ErrorRate())
+			fmt.Printf("===================================\n")
+		}
 	},
 }
 
@@ -127,5 +169,7 @@ func init() {
 	runCmd.Flags().IntVar(&vus,         "vus",      10,    "Virtual users")
 	runCmd.Flags().StringVar(&duration, "duration", "30s", "Test duration")
 	runCmd.Flags().IntVar(&rps,         "rps",      0,     "Max requests per second (0 = unlimited)")
+	runCmd.Flags().StringVar(&output, "output", "text", "Output format: text or json")
+
 	rootCmd.AddCommand(runCmd)
 }
