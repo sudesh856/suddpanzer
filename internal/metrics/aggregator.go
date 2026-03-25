@@ -74,6 +74,31 @@ func (a *Aggregator) RPS(elapsed time.Duration) float64 {
 	return float64(a.totalRequests) / elapsed.Seconds()
 }
 
+
+func (a *Aggregator) P75() int64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.histogram.ValueAtQuantile(75)
+}
+
+func (a *Aggregator) P90() int64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.histogram.ValueAtQuantile(90)
+}
+
+func (a *Aggregator) P95() int64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.histogram.ValueAtQuantile(95)
+}
+
+func (a *Aggregator) Max() int64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.histogram.Max()
+}
+
 func (a *Aggregator) ErrorRate() float64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
