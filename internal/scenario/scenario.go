@@ -30,6 +30,8 @@ type Endpoint struct {
 	ExpectedStatus int `yaml:"expected_status"`
 	Extract map[string]string `yaml:"extract"`
 	DependsOn string `yaml:"depends_on"`
+	BasicAuth      string            `yaml:"basic_auth"`
+
 }
 
 func LoadScenario(path string) (*Scenario, error) {

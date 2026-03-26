@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	
 )
 
 //since Job is what we send to a worker which is  the url to hit;
@@ -20,8 +19,8 @@ type Job struct {
 	Headers        map[string]string
 	ExpectedStatus int
 	Timeout        time.Duration
+	BasicAuth      string
 }
-
 
 //and since Result is what the worker sends back after firing a request
 
@@ -83,8 +82,17 @@ func RunWorker(ctx context.Context, jobs <-chan Job, results chan<- Result) {
 			}
 
 			// add headers from job
+			// add headers from job
 			for k, v := range job.Headers {
 				req.Header.Set(k, v)
+			}
+
+			// basic auth
+			if job.BasicAuth != "" {
+				parts := strings.SplitN(job.BasicAuth, ":", 2)
+				if len(parts) == 2 {
+					req.SetBasicAuth(parts[0], parts[1])
+				}
 			}
 
 			resp, err := client.Do(req)
@@ -114,4 +122,3 @@ func RunWorker(ctx context.Context, jobs <-chan Job, results chan<- Result) {
 		}
 	}
 }
-	

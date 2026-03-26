@@ -30,6 +30,10 @@ var flagScenarioFile string
 var method  string
 var headers []string
 var timeout string
+var basicAuth string
+var expectedStatus int
+
+
 
 
 
@@ -115,6 +119,8 @@ go func() {
                 Method: ep.Method,
                 Body:   body,
 				ExpectedStatus: ep.ExpectedStatus,
+				Headers:        ep.Headers,
+    			BasicAuth:      ep.BasicAuth,
 
             })
             <-ctrl.Semaphore
@@ -242,6 +248,9 @@ go func() {
 						Method:  method,
 						Headers: headerMap,
 						Timeout: reqTimeout,
+						BasicAuth: basicAuth,
+						ExpectedStatus: expectedStatus,
+
 					})
 				}
 			}
@@ -349,6 +358,8 @@ func init() {
 	runCmd.Flags().StringVar(&method, "method", "GET", "HTTP method (GET, POST, PUT, DELETE)")
 	runCmd.Flags().StringArrayVar(&headers, "header", []string{}, "HTTP headers (e.g. --header 'Authorization: Bearer token')")
 	runCmd.Flags().StringVar(&timeout, "timeout", "10s", "Per-request timeout")
+	runCmd.Flags().StringVar(&basicAuth, "auth", "", "Basic auth in user:password format")
+	runCmd.Flags().IntVar(&expectedStatus, "expected-status", 0, "Expected HTTP status code (0 = any)")
 
 	rootCmd.AddCommand(runCmd)
 }
