@@ -30,7 +30,7 @@ jobs:
           go-version: '1.22'
 
       - name: Build suddpanzer
-        run: go build -o suddpanzer ./cmd/main.go
+        run: go build -o suddpanzer ./cmd
 
       - name: Run load test
         env:
