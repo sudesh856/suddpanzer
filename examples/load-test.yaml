@@ -15,16 +15,15 @@ stages:
 
 endpoints:
   - name: get-users
-    url: https://api.example.com/users
+    url: https://httpbin.org/get
     method: GET
     weight: 70
     headers:
-      Authorization: Bearer {{env.API_TOKEN}}
       Accept: application/json
-    expected_status: 200
+      expected_status: 200
 
   - name: get-products
-    url: https://api.example.com/products
+    url: https://httpbin.org/get
     method: GET
     weight: 30
     headers:
