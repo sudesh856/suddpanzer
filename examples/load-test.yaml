@@ -31,9 +31,15 @@ endpoints:
       Accept: application/json
     expected_status: 200
 
+
+
+
+
+
+
+    
+
 # Phase 4: declare thresholds here.
-# suddpanzer exits 1 if any are breached — GitHub Actions marks job as failed.
-# Remove any line you don't want to enforce.
 thresholds:
   p99_ms: 9999           # p99 latency must be under 500ms
   p95_ms: 9999          # p95 latency must be under 300ms
