@@ -23,3 +23,7 @@ vendor/
 # IDE
 .vscode/
 .idea/
+
+
+# Ignore LoadForge reports
+report-*.html          # root folder reports
