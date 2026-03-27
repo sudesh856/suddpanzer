@@ -1,11 +1,11 @@
 name: Load Test
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch: 
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
+  workflow_dispatch:   # manual trigger only
 
 env:
   SUDDPANZER_VERSION: "0.3.0"
