@@ -1,0 +1,21 @@
+# examples/agents.yaml
+# Used with: suddpanzer run --scenario examples/load-test.yaml --distributed examples/agents.yaml
+#
+# Start agents first:
+#   Terminal 1: suddpanzer agent --id agent-1 --addr :7071 --region local-1
+#   Terminal 2: suddpanzer agent --id agent-2 --addr :7072 --region local-2
+#   Terminal 3: suddpanzer run --scenario examples/test-pass.yaml --distributed examples/agents.yaml
+
+agents:
+  - id: agent-1
+    address: localhost:7071
+    region: local-1
+
+  - id: agent-2
+    address: localhost:7072
+    region: local-2
+
+# Remote VPS example:
+#   - id: agent-vps
+#     address: YOUR_VPS_IP:7071
+#     region: us-east

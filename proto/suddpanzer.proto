@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package suddpanzer;
+
+option go_package = "github.com/sudesh856/suddpanzer/proto";
+
+message WorkSpec {
+  string scenario_yaml = 1;
+  string agent_id      = 2;
+  string region        = 3;
+}
+
+message MetricsSnapshot {
+  string agent_id        = 1;
+  string region          = 2;
+  int64  timestamp       = 3;
+  double rps             = 4;
+  int64  p50_ms          = 5;
+  int64  p95_ms          = 6;
+  int64  p99_ms          = 7;
+  double error_rate_pct  = 8;
+  int64  total_requests  = 9;
+  int64  error_count     = 10;
+  int64  vus_active      = 11;
+}
+
+message AgentStatus {
+  string agent_id = 1;
+  string status   = 2;
+  string message  = 3;
+}
+
+service SuddpanzerAgent {
+  rpc RunScenario(WorkSpec) returns (stream MetricsSnapshot);
+}

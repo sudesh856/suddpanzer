@@ -2,20 +2,23 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/sudesh856/suddpanzer/internal/controller"
 	"github.com/sudesh856/suddpanzer/internal/dashboard"
 	"github.com/sudesh856/suddpanzer/internal/metrics"
 	"github.com/sudesh856/suddpanzer/internal/output"
-	"github.com/sudesh856/suddpanzer/internal/pool"
 	promserver "github.com/sudesh856/suddpanzer/internal/prometheus"
+	"github.com/sudesh856/suddpanzer/internal/pool"
 	"github.com/sudesh856/suddpanzer/internal/ramp"
 	"github.com/sudesh856/suddpanzer/internal/report"
 	"github.com/sudesh856/suddpanzer/internal/reporter"
@@ -41,11 +44,18 @@ var runName string
 
 var metricsAddr string 
 var outputFile string  
+var distributedFile string // Phase 5
 
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a load test",
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// ── Phase 5: DISTRIBUTED MODE ──────────────────────────────────────
+		if distributedFile != "" {
+			runDistributed()
+			return
+		}
 
 		st, stErr := store.New("./blast.db")
 		if stErr != nil {
@@ -431,6 +441,45 @@ var runCmd = &cobra.Command{
 	},
 }
 
+// runDistributed hands off to the controller package.
+func runDistributed() {
+	if flagScenarioFile == "" {
+		fmt.Println("error: --scenario is required with --distributed")
+		os.Exit(1)
+	}
+
+	af, err := controller.LoadAgentsFile(distributedFile)
+	if err != nil {
+		fmt.Println("error:", err)
+		os.Exit(1)
+	}
+
+	scenarioBytes, err := os.ReadFile(flagScenarioFile)
+	if err != nil {
+		fmt.Println("error reading scenario:", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("[controller] distributed run across %d agent(s)\n", len(af.Agents))
+	for _, a := range af.Agents {
+		fmt.Printf("  → %s @ %s (region: %s)\n", a.ID, a.Address, a.Region)
+	}
+	fmt.Println()
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	results, err := controller.Run(ctx, af, string(scenarioBytes))
+	if err != nil {
+		fmt.Println("distributed run error:", err)
+		os.Exit(1)
+	}
+
+	if outputFormat == "json" {
+		data, _ := json.MarshalIndent(results, "", "  ")
+		fmt.Println(string(data))
+	}
+}
 
 func writeOutput(format, filePath string, sum report.Summary, thresholdFailures []string) {
 	// Decide where to write: file or stdout.
@@ -534,6 +583,9 @@ func init() {
 	// Phase 4 flags
 	runCmd.Flags().StringVar(&metricsAddr, "metrics-addr", "", "Expose Prometheus /metrics on this address during run (e.g. :9090)")
 	runCmd.Flags().StringVar(&outputFile, "output-file", "", "Write output to file (default: stdout)")
+	
+	// Phase 5 flag
+	runCmd.Flags().StringVar(&distributedFile, "distributed", "", "agents.yaml for distributed mode")
 
 	rootCmd.AddCommand(runCmd)
 }
