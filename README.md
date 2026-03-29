@@ -10,8 +10,9 @@ A fast, open-source HTTP load testing tool written in Go — with a live web das
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
-<!-- Replace this with your demo GIF -->
-<!-- ![suddpanzer demo](docs/demo.gif) -->
+![Terminal run](docs/demoterminal.gif)
+![Web dashboard](docs/demodashboard.gif)
+![YAML scenario](docs/YAMLscenario.gif)
 
 </div>
 
@@ -237,6 +238,7 @@ sudd run [flags]
 - Single binary, zero runtime dependencies
 
 **Web dashboard**
+![Web dashboard](docs/demodashboard.gif)
 - Live latency percentile chart and RPS vs error rate chart over WebSocket
 - Per-endpoint breakdown table
 - Abort button — graceful shutdown mid-run from the browser

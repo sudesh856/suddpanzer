@@ -30,3 +30,5 @@ report-*.html          # root folder reports
 
 *.csv
 *.xml
+
+server.js
