@@ -10,8 +10,15 @@ A fast, open-source HTTP load testing tool written in Go — with a live web das
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
+
+
+**Terminal run**
 ![Terminal run](docs/demoterminal.gif)
+
+**Web dashboard**
 ![Web dashboard](docs/demodashboard.gif)
+
+**YAML scenario**
 ![YAML scenario](docs/YAMLscenario.gif)
 
 </div>
