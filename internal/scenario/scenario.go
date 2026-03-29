@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/sudesh856/suddpanzer/internal/assertions"
+	"github.com/sudesh856/suddpanzer/internal/auth"
 )
 
 type Thresholds struct {
@@ -57,11 +58,12 @@ type DNSConfig struct {
 }
 
 type Scenario struct {
-	Name       string     `yaml:"name"`
-	DNS        DNSConfig  `yaml:"dns"`
-	Stages     []Stage    `yaml:"stages"`
-	Endpoints  []Endpoint `yaml:"endpoints"`
-	Thresholds Thresholds `yaml:"thresholds"`
+	Name       string      `yaml:"name"`
+	DNS        DNSConfig   `yaml:"dns"`
+	Auth       auth.Config `yaml:"auth"` // scenario-level auth (applies to all endpoints unless overridden)
+	Stages     []Stage     `yaml:"stages"`
+	Endpoints  []Endpoint  `yaml:"endpoints"`
+	Thresholds Thresholds  `yaml:"thresholds"`
 }
 
 type Stage struct {
@@ -82,6 +84,7 @@ type Endpoint struct {
 	DependsOn      string            `yaml:"depends_on"`
 	BasicAuth      string            `yaml:"basic_auth"`
 	Script         string            `yaml:"script"`
+	Auth           auth.Config       `yaml:"auth"` // endpoint-level auth (overrides scenario-level)
 
 	GRPCTarget   string `yaml:"grpc_target"`
 	GRPCMethod   string `yaml:"grpc_method"`

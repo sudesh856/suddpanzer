@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/sudesh856/suddpanzer/internal/assertions"
+	"github.com/sudesh856/suddpanzer/internal/auth"
 	"github.com/sudesh856/suddpanzer/internal/dnscache"
 	"github.com/sudesh856/suddpanzer/internal/scripting"
 )
@@ -30,6 +31,7 @@ type Job struct {
 	LuaScriptPool  *scripting.LuaScriptPool
 	Assertions     []assertions.Assertion
 	CookieJar      http.CookieJar
+	Auth           *auth.Middleware // JWT / OAuth2 / API key injection
 }
 
 type Result struct {
@@ -184,6 +186,17 @@ func RunWorker(ctx context.Context, jobs <-chan Job, results chan<- Result) {
 				parts := strings.SplitN(job.BasicAuth, ":", 2)
 				if len(parts) == 2 {
 					req.SetBasicAuth(parts[0], parts[1])
+				}
+			}
+
+			// ── Auth middleware injection ─────────────────────────────────
+			if job.Auth != nil {
+				if err := job.Auth.Inject(req); err != nil {
+					if cancelReq != nil {
+						cancelReq()
+					}
+					results <- Result{Latency: time.Since(start), Err: fmt.Errorf("auth inject: %w", err), EndpointName: job.Name}
+					continue
 				}
 			}
 

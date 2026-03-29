@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sudesh856/suddpanzer/internal/auth"
 	"github.com/sudesh856/suddpanzer/internal/dnscache"
 	"github.com/sudesh856/suddpanzer/internal/grpcworker"
 	"github.com/sudesh856/suddpanzer/internal/scripting"
@@ -88,8 +89,7 @@ var runCmd = &cobra.Command{
 				return
 			}
 
-			// ── CHANGE 2: Wire DNS resolver after loading scenario ──────────
-			// set up DNS resolver (caching + optional custom servers/overrides)
+			// ── DNS resolver ───────────────────────────────────────────────
 			dnsResolver, err := dnscache.New(dnscache.Config{
 				CacheTTL:  s.DNS.CacheTTL,
 				Servers:   s.DNS.Servers,
@@ -100,6 +100,30 @@ var runCmd = &cobra.Command{
 				return
 			}
 			worker.SetResolver(dnsResolver)
+
+			// ── Auth middleware (scenario-level) ───────────────────────────
+			var scenarioAuth *auth.Middleware
+			if !s.Auth.IsZero() {
+				scenarioAuth, err = auth.New(s.Auth)
+				if err != nil {
+					fmt.Println("auth config error:", err)
+					return
+				}
+			}
+
+			// ── Per-endpoint auth middleware cache ─────────────────────────
+			// Build once per endpoint name to avoid re-creating on every job.
+			endpointAuth := make(map[string]*auth.Middleware)
+			for _, ep := range s.Endpoints {
+				if !ep.Auth.IsZero() {
+					m, err := auth.New(ep.Auth)
+					if err != nil {
+						fmt.Printf("auth config error for endpoint %q: %v\n", ep.Name, err)
+						return
+					}
+					endpointAuth[ep.Name] = m
+				}
+			}
 
 			rampStages := make([]ramp.Stage, len(s.Stages))
 			for i, st := range s.Stages {
@@ -292,6 +316,15 @@ var runCmd = &cobra.Command{
 							if ep.CookieSession {
 								jar = sharedJar
 							}
+
+							// ── Resolve auth: endpoint-level overrides scenario-level ──
+							var jobAuth *auth.Middleware
+							if m, ok := endpointAuth[ep.Name]; ok {
+								jobAuth = m
+							} else {
+								jobAuth = scenarioAuth
+							}
+
 							job := worker.Job{
 								Name:           ep.Name,
 								URL:            epURL,
@@ -302,6 +335,7 @@ var runCmd = &cobra.Command{
 								BasicAuth:      ep.BasicAuth,
 								Assertions:     ep.Assertions,
 								CookieJar:      jar,
+								Auth:           jobAuth,
 							}
 							if ep.Script != "" {
 								if strings.HasSuffix(ep.Script, ".lua") {
@@ -619,7 +653,6 @@ func runDistributed() {
 }
 
 func writeOutput(format, filePath string, sum report.Summary, thresholdFailures []string) {
-	// Decide where to write: file or stdout.
 	w := os.Stdout
 	if filePath != "" {
 		f, err := os.Create(filePath)
@@ -713,7 +746,6 @@ func printSingleSummary(sum report.Summary, vus int) {
 }
 
 // mergeResults fans multiple result channels into one.
-// This lets the metrics aggregator consume HTTP + gRPC + WebSocket + TCP results together.
 func mergeResults(channels ...<-chan worker.Result) <-chan worker.Result {
 	merged := make(chan worker.Result, 2000)
 	var wg sync.WaitGroup

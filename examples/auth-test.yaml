@@ -1,0 +1,28 @@
+name: auth-middleware-test
+auth:
+  jwt:
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
+
+stages:
+  - duration: 5s
+    target_vus: 5
+
+endpoints:
+  - name: jwt-endpoint
+    url: http://localhost:8082/jwt
+    method: GET
+    weight: 50
+    assertions:
+      - type: status
+        value: "200"
+
+  - name: apikey-endpoint
+    url: http://localhost:8082/apikey
+    method: GET
+    weight: 50
+    auth:
+      api_key:
+        key: "my-secret-key"
+    assertions:
+      - type: status
+        value: "200"
